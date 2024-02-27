@@ -1,4 +1,5 @@
 const express = require("express");
+const dotenv = require('dotenv');
 const User = require("../model/userSchema");
 const Reset = require("../model/password_resetSchema");
 const Product = require("../model/productSchema");
@@ -15,10 +16,15 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
+dotenv.config({ path: 'config.env' });
+
+const API = process.env.OPENAI_API_KEY;
+
+
 const configuration = new Configuration({
-  //apiKey: process.env.API_KEY,
-  apiKey: "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",
+  apiKey: API,
 });
+
 const openai = new OpenAIApi(configuration);
 
 router.get("/", (req, res) => {
@@ -27,6 +33,7 @@ router.get("/", (req, res) => {
 
 //chat bot
 router.post("/message", async (req, res) => {
+  
   console.log("I am message");
   console.log(req.body);
   const message = req.body.message;
