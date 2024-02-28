@@ -1,5 +1,5 @@
 const express = require("express");
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
 const User = require("../model/userSchema");
 const Reset = require("../model/password_resetSchema");
 const Product = require("../model/productSchema");
@@ -16,10 +16,9 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
-dotenv.config({ path: 'config.env' });
+dotenv.config({ path: "config.env" });
 
 const API = process.env.OPENAI_API_KEY;
-
 
 const configuration = new Configuration({
   apiKey: API,
@@ -33,7 +32,6 @@ router.get("/", (req, res) => {
 
 //chat bot
 router.post("/message", async (req, res) => {
-  
   console.log("I am message");
   console.log(req.body);
   const message = req.body.message;
@@ -229,8 +227,6 @@ router.post("/forget-password", async (req, res) => {
     //create the new token
     const reset = await new Reset({ email, token });
     await reset.save();
-
-
 
     // Send password reset email
     const transporter = nodemailer.createTransport({
@@ -546,9 +542,8 @@ router.post("/create_order", async (req, res) => {
   try {
     const { userId, cartItems, billingDetails, total_amount } = req.body;
 
-
-    //find the user who ordered
-    const user = await User.findById({_id:userId});
+    //find the user who ordered and send him email
+    const user = await User.findById({ _id: userId });
     const userEmail = user.email;
 
     const transporter = nodemailer.createTransport({
@@ -560,24 +555,28 @@ router.post("/create_order", async (req, res) => {
       },
     });
 
-    const cartItemsFormatted = cartItems.map(item => {
-      return `${item.name} - ${item.quantity} units at ${item.price} Taka each`;
-    }).join('\n');
-    
-    const billingDetailsFormatted = `Name: ${billingDetails.name}\n` +
-                                   `Location: ${billingDetails.location}\n` +
-                                   `Phone Number: ${billingDetails.phoneNumber}\n` +
-                                   `Courier Charge: ${billingDetails.courierCharge} Taka`;
-    
+    const cartItemsFormatted = cartItems
+      .map((item) => {
+        return `${item.name} - ${item.quantity} units at ${item.price} Taka each`;
+      })
+      .join("\n");
+
+    const billingDetailsFormatted =
+      `Name: ${billingDetails.name}\n` +
+      `Location: ${billingDetails.location}\n` +
+      `Phone Number: ${billingDetails.phoneNumber}\n` +
+      `Courier Charge: ${billingDetails.courierCharge} Taka`;
+
     const mailOptions = {
       from: "demolink5355@gmail.com",
       to: userEmail,
       subject: "Purchase Confirmation",
-      text: `Congratulations on your purchase ${user.name}\n\n` +
-            `You have purchased:\n${cartItemsFormatted}\n\n` +
-            `Billing Address:\n${billingDetailsFormatted}\n\n` +
-            `Amount Paid: ${total_amount} Taka\n\n` +
-            `Thank You For Using Agro-Farm Market App`,
+      text:
+        `Congratulations on your purchase ${user.name}\n\n\n` +
+        `You have purchased:\n${cartItemsFormatted}\n\n\n` +
+        `Billing Address:\n${billingDetailsFormatted}\n\n\n` +
+        `Amount Paid: ${total_amount} Taka\n\n` +
+        `Thank You For Using Agro-Farm Market App`,
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -590,9 +589,7 @@ router.post("/create_order", async (req, res) => {
           .status(200)
           .json({ message: "Password reset email sent successfully" });
       }
-    })
-
-
+    });
 
     console.log("cart items");
     console.log(cartItems);
@@ -622,9 +619,6 @@ router.post("/create_order", async (req, res) => {
     });
 
     await order.save();
-     
-
-
 
     //delete carts because the order is done
     await Cart.findOneAndDelete({ buyer_id: userId });
@@ -634,6 +628,53 @@ router.post("/create_order", async (req, res) => {
       const local_id = item.local_id;
       const product_name = item.name;
       const product_quantity = item.quantity;
+      const price = item.price;
+
+      //send email to each seller that a order is here
+
+      //find the user who ordered and send him email
+      const user = await User.findById({ _id: seller_id });
+      const userEmail = user.email;
+
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        secure: false,
+        auth: {
+          user: "demolink5355@gmail.com",
+          pass: "khcb gflu fcjp suag",
+        },
+      });
+
+      const billingDetailsFormatted =
+        `Name: ${billingDetails.name}\n` +
+        `Location: ${billingDetails.location}\n` +
+        `Phone Number: ${billingDetails.phoneNumber}\n` +
+        `Courier Charge: ${billingDetails.courierCharge} Taka`;
+
+      const mailOptions = {
+        from: "demolink5355@gmail.com",
+        to: userEmail,
+        subject: "New Order Placed",
+        text:
+          `There is a new order from ${user.name}\n\n` +
+          `Item purchased: \n${product_name}\n\n` +
+          `Billing Address:\n${billingDetailsFormatted}\n\n` +
+          `Amount Paid: ${product_quantity * price} Taka\n\n` +
+          `Currier Price is cash on delivery\n\n` +
+          `Open app and ship the products`,
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.log("Error sending email:", error);
+          res.status(500).json({ message: "Error sending email" });
+        } else {
+          console.log("Email sent:", info.response);
+          res
+            .status(200)
+            .json({ message: "Password reset email sent successfully" });
+        }
+      });
 
       //update the graphData model to keep track of the individual selling
       try {
@@ -788,31 +829,32 @@ router.get("/top_product_graph/:user_id", async (req, res) => {
 
 //Graph for all users
 router.get("/best_product", async (req, res) => {
-
   try {
     const topProducts = await GraphData.aggregate([
-        { $unwind: '$products' },
-        { $group: {
-            _id: '$products.product_name',
-            count: { $sum: '$products.count' }
-        }},
-        { $sort: { count: -1 } },
-        { $limit: 5 },
-        { $project: {
-            _id: 0,
-            product_name: '$_id',
-            count: '$count'
-        }}
+      { $unwind: "$products" },
+      {
+        $group: {
+          _id: "$products.product_name",
+          count: { $sum: "$products.count" },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          _id: 0,
+          product_name: "$_id",
+          count: "$count",
+        },
+      },
     ]);
 
     res.json(topProducts);
-} catch (error) {
-    console.error('Error fetching top 5 products:', error);
-    res.status(500).send('An error occurred while fetching top products.');
-}
+  } catch (error) {
+    console.error("Error fetching top 5 products:", error);
+    res.status(500).send("An error occurred while fetching top products.");
+  }
 });
-
-
 
 //For administrator
 //get seller's products unauthorized
@@ -842,6 +884,5 @@ router.get("/fetch_all_product", async (req, res) => {
     console.log(err);
   }
 });
-
 
 module.exports = router;
