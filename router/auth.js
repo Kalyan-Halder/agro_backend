@@ -780,5 +780,14 @@ router.get("/fetch_authorized_for_admin_products", async (req, res) => {
   }
 });
 
+router.get("/fetch_all_product", async (req, res) => {
+  try {
+    const data = await Product.find();
+    res.status(200).send(data);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
 
 module.exports = router;
