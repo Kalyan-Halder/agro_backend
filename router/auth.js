@@ -428,6 +428,27 @@ router.put("/update_product/:product_id", async (req, res) => {
   }
 });
 
+router.put("/update_product_status/:product_id", async (req, res) => {
+  const product_id = req.params.product_id;
+  const { is_verified } = req.body;
+  console.log(is_verified);
+  console.log(product_id);
+  try {
+    const updatedProduct = await Product.findOneAndUpdate(
+      { local_id: product_id },
+      { $set: { isVerified: is_verified } },
+      { new: true }
+    );
+    if (updatedProduct) {
+      res.status(200).send("Product updated");
+    } else {
+      res.status(400).send("unable to update");
+    }
+  } catch (err) {
+    res.status(400).send("unable to update");
+  }
+});
+
 router.get("/all_product", async (req, res) => {
   try {
     all_product = await Product.find({});
@@ -737,6 +758,27 @@ router.get("/best_product", async (req, res) => {
 }
 });
 
+
+
+//For administrator
+//get seller's products unauthorized
+router.get("/fetch_unauthorized_for_admin_products", async (req, res) => {
+  try {
+    const data = await Product.find({ isVerified: false });
+    res.status(200).send(data);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+router.get("/fetch_authorized_for_admin_products", async (req, res) => {
+  try {
+    const data = await Product.find({ isVerified: true });
+    res.status(200).send(data);
+  } catch (err) {
+    console.log(err);
+  }
+});
 
 
 module.exports = router;
