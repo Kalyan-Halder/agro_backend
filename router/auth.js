@@ -230,6 +230,8 @@ router.post("/forget-password", async (req, res) => {
     const reset = await new Reset({ email, token });
     await reset.save();
 
+
+
     // Send password reset email
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -543,6 +545,55 @@ router.get("/delete_cart/:user_id/:cart_id", async (req, res) => {
 router.post("/create_order", async (req, res) => {
   try {
     const { userId, cartItems, billingDetails, total_amount } = req.body;
+
+
+    //find the user who ordered
+    const user = await User.findById({_id:userId});
+    const userEmail = user.email;
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      secure: false,
+      auth: {
+        user: "demolink5355@gmail.com",
+        pass: "khcb gflu fcjp suag",
+      },
+    });
+
+    const cartItemsFormatted = cartItems.map(item => {
+      return `${item.name} - ${item.quantity} units at ${item.price} Taka each`;
+    }).join('\n');
+    
+    const billingDetailsFormatted = `Name: ${billingDetails.name}\n` +
+                                   `Location: ${billingDetails.location}\n` +
+                                   `Phone Number: ${billingDetails.phoneNumber}\n` +
+                                   `Courier Charge: ${billingDetails.courierCharge} Taka`;
+    
+    const mailOptions = {
+      from: "demolink5355@gmail.com",
+      to: userEmail,
+      subject: "Purchase Confirmation",
+      text: `Congratulations on your purchase ${user.name}\n\n` +
+            `You have purchased:\n${cartItemsFormatted}\n\n` +
+            `Billing Address:\n${billingDetailsFormatted}\n\n` +
+            `Amount Paid: ${total_amount} Taka\n\n` +
+            `Thank You For Using Agro-Farm Market App`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log("Error sending email:", error);
+        res.status(500).json({ message: "Error sending email" });
+      } else {
+        console.log("Email sent:", info.response);
+        res
+          .status(200)
+          .json({ message: "Password reset email sent successfully" });
+      }
+    })
+
+
+
     console.log("cart items");
     console.log(cartItems);
     const order = new Order({
@@ -571,6 +622,9 @@ router.post("/create_order", async (req, res) => {
     });
 
     await order.save();
+     
+
+
 
     //delete carts because the order is done
     await Cart.findOneAndDelete({ buyer_id: userId });
