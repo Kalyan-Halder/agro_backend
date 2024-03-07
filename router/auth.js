@@ -242,7 +242,8 @@ router.post("/forget-password", async (req, res) => {
       from: "demolink5355@gmail.com",
       to: email,
       subject: "One Time Verificaion Code",
-      text: `Enter the following code to the token box:\n${token}`,
+      html: `<p>Enter the following code to the token box:</p>
+             <p style="font-size: 34px; font-weight: bold;">${token}</p>`,
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
