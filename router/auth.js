@@ -894,3 +894,4 @@ router.get("/fetch_all_product", async (req, res) => {
 });
 
 module.exports = router;
+//console.log("test")
