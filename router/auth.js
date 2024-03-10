@@ -558,26 +558,27 @@ router.post("/create_order", async (req, res) => {
 
     const cartItemsFormatted = cartItems
       .map((item) => {
-        return `${item.name} - ${item.quantity} units at ${item.price} Taka each`;
+        return `<li>${item.name} - ${item.quantity} units at ${item.price} Taka each quantity</li>`;
       })
-      .join("\n");
+      .join("");
 
     const billingDetailsFormatted =
-      `Name: ${billingDetails.name}\n` +
-      `Location: ${billingDetails.location}\n` +
-      `Phone Number: ${billingDetails.phoneNumber}\n` +
-      `Courier Charge: ${billingDetails.courierCharge} Taka`;
+      `<p style="margin-bottom: 10px;"><strong>Name:</strong> ${billingDetails.name}</p>` +
+      `<p style="margin-bottom: 10px;"><strong>Location:</strong> ${billingDetails.location}</p>` +
+      `<p style="margin-bottom: 10px;"><strong>Phone Number:</strong> ${billingDetails.phoneNumber}</p>` +
+      `<p style="margin-bottom: 10px;"><strong>Courier Charge:</strong> ${billingDetails.courierCharge} Taka</p>`;
 
     const mailOptions = {
       from: "demolink5355@gmail.com",
       to: userEmail,
       subject: "Purchase Confirmation",
-      text:
-        `Congratulations on your purchase ${user.name}\n\n\n` +
-        `You have purchased:\n${cartItemsFormatted}\n\n\n` +
-        `Billing Address:\n${billingDetailsFormatted}\n\n\n` +
-        `Amount Paid: ${total_amount} Taka\n\n` +
-        `Thank You For Using Agro-Farm Market App`,
+      html:
+        `<div style="font-size: 28px; color: #333; margin-bottom: 20px;">Congratulations on your purchase ${user.name}</div>` +
+        `<ul style="list-style-type: none; padding: 0;">You have purchased:${cartItemsFormatted}</ul>` +
+        `<div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">` +
+        `<div style="font-size: 26px; color: #555; margin-bottom: 10px;">Billing Address:</div>${billingDetailsFormatted}</div>` +
+        `<p style="font-size: 18px; color: #333; margin-top: 20px;"><strong>Amount Paid:</strong> ${total_amount} Taka</p>` +
+        `<p style="font-size: 16px; color: #777; margin-top: 20px;">Thank You For Using Agro-Farm Market App</p>`,
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -647,22 +648,28 @@ router.post("/create_order", async (req, res) => {
       });
 
       const billingDetailsFormatted =
-        `Name: ${billingDetails.name}\n` +
-        `Location: ${billingDetails.location}\n` +
-        `Phone Number: ${billingDetails.phoneNumber}\n` +
-        `Courier Charge: ${billingDetails.courierCharge} Taka`;
+        `<p><strong>Name:</strong> ${billingDetails.name}</p>` +
+        `<p><strong>Location:</strong> ${billingDetails.location}</p>` +
+        `<p><strong>Phone Number:</strong> ${billingDetails.phoneNumber}</p>` +
+        `<p><strong>Courier Charge:</strong> ${billingDetails.courierCharge} Taka</p>`;
 
       const mailOptions = {
         from: "demolink5355@gmail.com",
         to: userEmail,
         subject: "New Order Placed",
-        text:
-          `There is a new order from ${user.name}\n\n` +
-          `Item purchased: \n${product_name}\n\n` +
-          `Billing Address:\n${billingDetailsFormatted}\n\n` +
-          `Amount Paid: ${product_quantity * price} Taka\n\n` +
-          `Currier Price is cash on delivery\n\n` +
-          `Open app and ship the products`,
+        html:
+          `<div style="font-size: 18px; color: #333; margin-bottom: 20px;">There is a new order from ${user.name}</div>` +
+          `<ul style="list-style-type: none; padding: 0;">` +
+          `<li><strong>Item purchased:</strong></li>` +
+          `<li>${product_name}. Quantity: ${product_quantity} kg/liter/unit at ${price} Taka per unit</li>` +
+          `</ul>` +
+          `<div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">` +
+          `<div style="font-size: 16px; color: #555; margin-bottom: 10px;"><strong>Billing Address:</strong></div>${billingDetailsFormatted}</div>` +
+          `<p style="font-size: 18px; color: #333; margin-top: 20px;"><strong>Amount Paid:</strong> ${
+            product_quantity * price
+          } Taka</p>` +
+          `<p style="font-size: 16px; color: #777; margin-top: 20px;">Courier Price is cash on delivery</p>` +
+          `<p style="font-size: 16px; color: #777; margin-top: 20px;">Open the app and ship the products</p>`,
       };
 
       transporter.sendMail(mailOptions, (error, info) => {
@@ -673,7 +680,7 @@ router.post("/create_order", async (req, res) => {
           console.log("Email sent:", info.response);
           res
             .status(200)
-            .json({ message: "Password reset email sent successfully" });
+            .json({ message: "Order confirmation email sent successfully" });
         }
       });
 
@@ -722,7 +729,7 @@ router.post("/create_order", async (req, res) => {
       });
 
       await Product.findOneAndUpdate(
-        { seller_id: item.seller_id },
+        { seller_id: item.seller_id, local_id: item.local_id },
         { $set: { quantity: get_product_details.quantity - item.quantity } },
         { new: true }
       );
