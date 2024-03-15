@@ -19,6 +19,7 @@ const nodemailer = require("nodemailer");
 const similarity = require("string-similarity");
 const knowledgeBase = require("./knowledge_base.json");
 const fs = require('fs');
+const path = require('path');
 
 dotenv.config({ path: "config.env" });
 
@@ -77,9 +78,10 @@ router.post("/message", async (req, res) => {
       console.log("answer exists");
     } else {
       console.log("does not exist") 
+      const filePath = path.join(__dirname, 'knowledge_base.json');
       
       // Read the current content of the knowledge_base.json file
-      fs.readFile("./router/knowledge_base.json", "utf8", (err, data) => {
+      fs.readFile(filePath, "utf8", (err, data) => {
         if (err) {
           console.error("Error reading knowledge_base.json:", err);
           res.status(500).json({ message: "Internal server error" });
@@ -91,10 +93,10 @@ router.post("/message", async (req, res) => {
     
         // Add the new question-answer pair to the knowledge base
         knowledgeBase.questions.push({ question:message, answer:generatedMessage });
-    
+        
         // Write the updated knowledge_base.json file
         fs.writeFile(
-          "./router/knowledge_base.json",
+          filePath,
           JSON.stringify(knowledgeBase, null, 2),
           (err) => {
             if (err) {
