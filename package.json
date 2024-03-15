@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js",
-    "dev":"nodemon app.js"
+    "dev": "nodemon app.js"
   },
   "author": "",
   "license": "ISC",
@@ -18,10 +18,14 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
+    "lemmatizer": "^0.0.1",
     "mongoose": "^8.0.2",
+    "natural": "^6.12.0",
+    "node-tfidf": "^0.0.2",
     "nodemailer": "^6.9.8",
     "nodemon": "^3.0.3",
-    "openai": "^3.3.0"
+    "openai": "^3.3.0",
+    "string-similarity": "^4.0.4"
   },
   "description": ""
 }

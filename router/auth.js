@@ -16,6 +16,10 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
+const similarity = require("string-similarity");
+const knowledgeBase = require("./knowledge_base.json");
+const fs = require('fs');
+
 dotenv.config({ path: "config.env" });
 
 const API = process.env.OPENAI_API_KEY;
@@ -30,13 +34,15 @@ router.get("/", (req, res) => {
   res.send("Hello from the router");
 });
 
-//chat bot
+//chat bot api
 router.post("/message", async (req, res) => {
   console.log("I am message");
   console.log(req.body);
   const message = req.body.message;
-  /*  res.status(200).send({message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."});
-   */
+  /*res.status(200).send({
+      message:"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+    });*/
+
   try {
     const response = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
@@ -50,16 +56,95 @@ router.post("/message", async (req, res) => {
       frequency_penalty: 0.5,
       presence_penalty: 0,
     });
-    console.log();
     const generatedMessage = response.data.choices[0].message.content;
+
+
+
+
+
+    //check the knowledge base if their is an entry for the question
+    const knowledgeQuestions = knowledgeBase.questions.map((q) => q.question);
+
+    // Find the best match
+    const matches = similarity.findBestMatch(message, knowledgeQuestions);
+    const bestMatch = matches.bestMatch;
+
+    // Get the corresponding answer
+    const matchedQuestion = knowledgeBase.questions[matches.bestMatchIndex];
+
+    if (bestMatch.rating > 0.2 && matchedQuestion) {
+      const message = matchedQuestion.answer;
+      console.log("answer exists");
+    } else {
+      console.log("does not exist") 
+      
+      // Read the current content of the knowledge_base.json file
+      fs.readFile("./router/knowledge_base.json", "utf8", (err, data) => {
+        if (err) {
+          console.error("Error reading knowledge_base.json:", err);
+          res.status(500).json({ message: "Internal server error" });
+          return;
+        }
+    
+        // Parse the JSON data
+        const knowledgeBase = JSON.parse(data);
+    
+        // Add the new question-answer pair to the knowledge base
+        knowledgeBase.questions.push({ question:message, answer:generatedMessage });
+    
+        // Write the updated knowledge_base.json file
+        fs.writeFile(
+          "./router/knowledge_base.json",
+          JSON.stringify(knowledgeBase, null, 2),
+          (err) => {
+            if (err) {
+              console.error("Error writing to knowledge_base.json:", err);
+              res.status(500).json({ message: "Internal server error" });
+              return;
+            }
+            res.json({ message: "Knowledge base updated successfully" });
+          }
+        );
+      });
+    }
+    
+    //checking ends
+
+
+
+
 
     res.status(200).send({ message: generatedMessage });
   } catch (error) {
-    console.error("OpenAI API Error:", error.response.data);
+    console.error("OpenAI API Error:", error);
     res.status(500).send("Something went wrong");
   }
 });
 
+//chat bot local
+router.post("/ask", (req, res) => {
+  const { question } = req.body;
+
+  // Extract questions from knowledge base
+  const knowledgeQuestions = knowledgeBase.questions.map((q) => q.question);
+
+  // Find the best match
+  const matches = similarity.findBestMatch(question, knowledgeQuestions);
+  const bestMatch = matches.bestMatch;
+
+  // Get the corresponding answer
+  const matchedQuestion = knowledgeBase.questions[matches.bestMatchIndex];
+
+  if (bestMatch.rating > 0.2 && matchedQuestion) {
+    const message = matchedQuestion.answer;
+    res.json({ message });
+  } else {
+    const message =
+      "Sorry, I couldn't find an answer to that question. Turn on the trubo mode if needed";
+    res.json({ message });
+  }
+});
+ 
 //get user
 router.get("/user/:user_id", async (req, res) => {
   try {

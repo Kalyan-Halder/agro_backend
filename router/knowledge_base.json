@@ -1,0 +1,32 @@
+{
+  "questions": [
+    {
+      "question": "hello",
+      "answer": "Hello Sir, how are you?"
+    },
+    {
+      "question": "How to prevent soil erosion?",
+      "answer": "Implement conservation tillage, plant cover crops, and maintain vegetative buffers."
+    },
+    {
+      "question": "How to control tomato pests?",
+      "answer": "Use integrated pest management techniques, such as introducing beneficial insects and applying insecticidal soaps."
+    },
+    {
+      "question": "How to improve soil fertility?",
+      "answer": "Incorporate organic matter, conduct soil tests, and apply appropriate fertilizers."
+    },
+    {
+      "question": "How to conserve water in irrigation?",
+      "answer": "Use drip irrigation, mulch around plants, and schedule irrigation during cooler times of the day."
+    },
+    {
+      "question": "What are the benefits of crop rotation?",
+      "answer": "Break pest cycles, improve soil health, and maintain nutrient balance."
+    },
+    {
+      "question": "Bangladesh",
+      "answer": "Bangladesh is a country located in South Asia, bordered by India to the west, north, and east, Myanmar (Burma) to the southeast, and the Bay of Bengal to the south. The capital city is Dhaka. Bangladesh is known for its rich culture, history, and natural beauty. It is the world's eighth-most populous country with a diverse population that includes various ethnic groups and religions. The economy is primarily based on agriculture, textiles, and garments manufacturing. How can I assist you further with information about Bangladesh?"
+    }
+  ]
+}
