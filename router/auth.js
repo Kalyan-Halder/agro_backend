@@ -6,6 +6,8 @@ const Product = require("../model/productSchema");
 const Cart = require("../model/cart_Schema");
 const Order = require("../model/order_schema");
 const GraphData = require("../model/local_Graph_Schema");
+const Knowledge = require("../model/knowledge_schema");
+const Product_sub = require("../model/product_subdetails");
 const mongoose = require("mongoose");
 
 const { Configuration, OpenAIApi } = require("openai");
@@ -17,9 +19,11 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
 const similarity = require("string-similarity");
-const knowledgeBase = require("./knowledge_base.json");
-const fs = require('fs');
-const path = require('path');
+//const knowledgeBase = require("./knowledge_base.json");
+const fs = require("fs");
+const path = require("path");
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
 dotenv.config({ path: "config.env" });
 
@@ -34,6 +38,14 @@ const openai = new OpenAIApi(configuration);
 router.get("/", (req, res) => {
   res.send("Hello from the router");
 });
+
+
+
+
+
+
+
+
 
 //chat bot api
 router.post("/message", async (req, res) => {
@@ -59,62 +71,78 @@ router.post("/message", async (req, res) => {
     });
     const generatedMessage = response.data.choices[0].message.content;
 
-
-
-
-
     //check the knowledge base if their is an entry for the question
-    const knowledgeQuestions = knowledgeBase.questions.map((q) => q.question);
+    const knowledgeBase = await Knowledge.find({});
+    console.log(knowledgeBase);
 
-    // Find the best match
-    const matches = similarity.findBestMatch(message, knowledgeQuestions);
-    const bestMatch = matches.bestMatch;
+    if (knowledgeBase.length > 0) {
+      const knowledgeQuestions = knowledgeBase.flatMap((entry) =>
+        entry.questions.map((q) => q.question)
+      );
 
-    // Get the corresponding answer
-    const matchedQuestion = knowledgeBase.questions[matches.bestMatchIndex];
+      // Find the best match
+      const matches = similarity.findBestMatch(message, knowledgeQuestions);
+      const bestMatch = matches.bestMatch;
 
-    if (bestMatch.rating > 0.2 && matchedQuestion) {
-      const message = matchedQuestion.answer;
-      console.log("answer exists");
+      // Get the corresponding answer
+      const matchedQuestion = knowledgeBase.find((entry) =>
+        entry.questions.some((q) => q.question === bestMatch.target)
+      );
+
+      if (bestMatch.rating > 0.2 && matchedQuestion) {
+        console.log("Answer exists");
+        const message = matchedQuestion.questions.find(
+          (q) => q.question === bestMatch.target
+        ).answer;
+        console.log("Answer: ", message);
+      } else {
+        console.log("Answer does not exist");
+        const newPair = new Knowledge({
+          questions: [
+            {
+              question: message,
+              answer: generatedMessage,
+            },
+          ],
+        });
+
+        // Save the new pair to the database
+        newPair
+          .save()
+          .then((savedPair) => {
+            console.log(
+              "New question-answer pair added successfully:",
+              savedPair
+            );
+          })
+          .catch((error) => {
+            console.error("Error adding new question-answer pair:", error);
+          });
+      }
     } else {
-      console.log("does not exist") 
-      const filePath = path.join(__dirname, 'knowledge_base.json');
-      
-      // Read the current content of the knowledge_base.json file
-      fs.readFile(filePath, "utf8", (err, data) => {
-        if (err) {
-          console.error("Error reading knowledge_base.json:", err);
-          res.status(500).json({ message: "Internal server error" });
-          return;
-        }
-    
-        // Parse the JSON data
-        const knowledgeBase = JSON.parse(data);
-    
-        // Add the new question-answer pair to the knowledge base
-        knowledgeBase.questions.push({ question:message, answer:generatedMessage });
-        
-        // Write the updated knowledge_base.json file
-        fs.writeFile(
-          filePath,
-          JSON.stringify(knowledgeBase, null, 2),
-          (err) => {
-            if (err) {
-              console.error("Error writing to knowledge_base.json:", err);
-              res.status(500).json({ message: "Internal server error" });
-              return;
-            }
-            res.json({ message: "Knowledge base updated successfully" });
-          }
-        );
+      console.log("Knowledge base is empty");
+      const newPair = new Knowledge({
+        questions: [
+          {
+            question: message,
+            answer: generatedMessage,
+          },
+        ],
       });
+
+      // Save the new pair to the database
+      newPair
+        .save()
+        .then((savedPair) => {
+          console.log(
+            "New question-answer pair added successfully:",
+            savedPair
+          );
+        })
+        .catch((error) => {
+          console.error("Error adding new question-answer pair:", error);
+        });
     }
-    
-    //checking ends
-
-
-
-
 
     res.status(200).send({ message: generatedMessage });
   } catch (error) {
@@ -123,30 +151,74 @@ router.post("/message", async (req, res) => {
   }
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
 //chat bot local
-router.post("/ask", (req, res) => {
+router.post("/ask", async (req, res) => {
   const { question } = req.body;
+  console.log(question);
 
-  // Extract questions from knowledge base
-  const knowledgeQuestions = knowledgeBase.questions.map((q) => q.question);
+  try {
+    // Fetch knowledge base data
+    const knowledgeBase = await Knowledge.find({});
+    console.log(knowledgeBase);
 
-  // Find the best match
-  const matches = similarity.findBestMatch(question, knowledgeQuestions);
-  const bestMatch = matches.bestMatch;
+    if (knowledgeBase.length > 0) {
+      // Extract questions from knowledge base
+      const knowledgeQuestions = knowledgeBase
+        .map((entry) => entry.questions.map((q) => q.question))
+        .flat();
 
-  // Get the corresponding answer
-  const matchedQuestion = knowledgeBase.questions[matches.bestMatchIndex];
+      // Find the best match
+      const matches = similarity.findBestMatch(question, knowledgeQuestions);
+      const bestMatch = matches.bestMatch;
 
-  if (bestMatch.rating > 0.2 && matchedQuestion) {
-    const message = matchedQuestion.answer;
-    res.json({ message });
-  } else {
-    const message =
-      "Sorry, I couldn't find an answer to that question. Turn on the trubo mode if needed";
-    res.json({ message });
+      // Get the corresponding answer
+      const matchedQuestion = knowledgeBase.find((entry) =>
+        entry.questions.some((q) => q.question === bestMatch.target)
+      );
+
+      if (bestMatch.rating > 0.4 && matchedQuestion) {
+        const message = matchedQuestion.questions.find(
+          (q) => q.question === bestMatch.target
+        ).answer;
+        res.json({ message });
+      } else {
+        const message =
+          "Sorry, I couldn't find an answer to that question. Turn on the turbo mode if needed";
+        res.json({ message });
+      }
+    } else {
+      const message = "The Knowledgebase is empty";
+      res.json({ message });
+    }
+  } catch (error) {
+    console.error("Error processing request:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
- 
+
+
+
+
+
+
+
+
+
+
+
+
 //get user
 router.get("/user/:user_id", async (req, res) => {
   try {
@@ -163,6 +235,14 @@ router.get("/user/:user_id", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+
+
+
+
+
+
+
 
 //get user by giving email
 router.post("/user", async (req, res) => {
@@ -182,6 +262,15 @@ router.post("/user", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+
+
+
+
+
+
+
+
 
 //register
 router.post("/register", async (req, res) => {
@@ -453,9 +542,56 @@ router.post("/add_product", async (req, res) => {
       console.log("Product already exists, no action taken.");
     }
 
-    res.status(200).send("Product added successfully");
+    res.status(200).json({local_id:local_id});
   } catch (err) {
     res.status(400).send("Failed to save product");
+  }
+});
+//add image and description
+const convertToBase64 = (filePath) => {
+  try {
+    const imageBuffer = fs.readFileSync(filePath);
+    return imageBuffer.toString('base64');
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
+  }
+};
+
+// Route to handle the multipart request
+router.post('/set_image_dis', upload.single('image'), async (req, res) => {
+  console.log("I am here at image");
+  try {
+    // Get the description from the request body
+    const description = req.body.description;
+    const loacl_id = req.body.local_id;
+
+ 
+
+    // Get the path to the uploaded image file
+    const imagePath = req.file.path;
+
+    // Convert the image file to base64
+    const base64Image = convertToBase64(imagePath);
+
+    // Create a new Product document
+    const newProduct = new Product_sub({
+      image: base64Image,
+      description: description,
+      local_id:loacl_id
+    });
+
+    // Save the product to MongoDB
+    await newProduct.save();
+
+    // Remove the uploaded image file
+    fs.unlinkSync(imagePath);
+
+    // Send a success response
+    res.status(200).json({ message: 'Data uploaded successfully' });
+  } catch (error) {
+    console.error('Error handling request:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
