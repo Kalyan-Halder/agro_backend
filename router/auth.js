@@ -1,5 +1,9 @@
 const express = require("express");
 const dotenv = require("dotenv");
+const moment = require("moment");
+
+
+
 const User = require("../model/userSchema");
 const Reset = require("../model/password_resetSchema");
 const Product = require("../model/productSchema");
@@ -547,6 +551,8 @@ router.post("/add_product", async (req, res) => {
     res.status(400).send("Failed to save product");
   }
 });
+
+
 //add image and description
 const convertToBase64 = (filePath) => {
   try {
@@ -565,6 +571,7 @@ router.post('/set_image_dis', upload.single('image'), async (req, res) => {
     // Get the description from the request body
     const description = req.body.description;
     const loacl_id = req.body.local_id;
+    const date_of = req.body.date_of;
 
  
 
@@ -578,7 +585,8 @@ router.post('/set_image_dis', upload.single('image'), async (req, res) => {
     const newProduct = new Product_sub({
       image: base64Image,
       description: description,
-      local_id:loacl_id
+      local_id:loacl_id,
+      date_of:date_of
     });
 
     // Save the product to MongoDB
@@ -589,6 +597,41 @@ router.post('/set_image_dis', upload.single('image'), async (req, res) => {
 
     // Send a success response
     res.status(200).json({ message: 'Data uploaded successfully' });
+  } catch (error) {
+    console.error('Error handling request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//get the image and descriptions
+router.get('/get_image/:local_id', async (req, res) => {
+  console.log("I am get image");
+  try {
+    const local_id = req.params.local_id;
+    console.log(local_id);
+
+    // Find the product document with the matching local_id
+    const details = await Product_sub.findOne({ local_id });
+    const product = await Product.findOne({local_id});
+
+    // If the product is not found, return a 404 Not Found response
+    if (!details) {
+      console.log("product not found");
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Retrieve the base64-encoded image and description from the product document
+    const base64Image = details.image;
+    const name = product.name;
+    const price = product.price;
+    const description = details.description;
+    const date_of = details.date_of;
+    const date = details.createdAt;
+    console.log(price);
+    console.log(name);
+
+    // Send the base64-encoded image and description in the response
+    res.status(200).json({ image: base64Image, description: description,name:name,price:price ,date_of:date_of,date:moment(date).fromNow()});
   } catch (error) {
     console.error('Error handling request:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -621,8 +664,14 @@ router.get("/delete_product/:product_id", async (req, res) => {
       { seller_id },
       { $pull: { products: { product_name: name } } }
     );
+    //delete the details and image if exists
+    const product_details = await Product_sub.findOne({local_id:procduct_id});
+    if(product_details){
+      await Product_sub.deleteOne({local_id:procduct_id});
+    }
+
     // then it is deleted from the Product data
-    await Product.deleteOne({ local_id: procduct_id });
+    await Product.deleteOne({local_id:procduct_id});
     res.status(200).send("deletion successfull");
   } catch (err) {
     console.log(err);

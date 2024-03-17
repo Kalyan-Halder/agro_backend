@@ -4,7 +4,9 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema({
   local_id:{type:String,required:true},
   image: { type: String, required: true }, // Base64 representation of the image
-  description: { type: String, required: true } // Description of the product
+  description: { type: String, required: true }, // Description of the product
+  date_of:{type:String,required:true},
+  createdAt: { type: Date, default: Date.now }
 });
 
 // Create a model for the product collection
