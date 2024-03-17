@@ -23,11 +23,25 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
 const similarity = require("string-similarity");
+
+
+
 //const knowledgeBase = require("./knowledge_base.json");
 const fs = require("fs");
 const path = require("path");
+
+const { Types } = require('mongoose');
+const { MongoClient, GridFSBucket } = require('mongodb');
+const { Readable } = require('stream');
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
+
+let gfsBucket;
+
+mongoose.connection.once('open', async () => {
+    const db = mongoose.connection.db;
+    gfsBucket = new GridFSBucket(db);
+});
 
 dotenv.config({ path: "config.env" });
 
@@ -554,73 +568,47 @@ router.post("/add_product", async (req, res) => {
 
 
 //add image and description
-const convertToBase64 = (filePath) => {
-  try {
-    const imageBuffer = fs.readFileSync(filePath);
-    return imageBuffer.toString('base64');
-  } catch (error) {
-    console.error('Error converting image to base64:', error);
-    return null;
-  }
-};
-
-// Route to handle the multipart request
 router.post('/set_image_dis', upload.single('image'), async (req, res) => {
-  console.log("I am here at image");
   try {
-    // Get the description from the request body
-    const description = req.body.description;
-    const loacl_id = req.body.local_id;
-    const date_of = req.body.date_of;
+      // Get the description from the request body
+      const { description, local_id, date_of } = req.body;
 
- 
+      // Create a new product document
+      const newProduct = new Product_sub({
+        local_id,
+        image: req.file.buffer.toString('base64'), // Assuming you're storing the image as base64
+        description,
+        date_of
+      });
 
-    // Get the path to the uploaded image file
-    const imagePath = req.file.path;
+      // Save the product to the database
+      await newProduct.save();
 
-    // Convert the image file to base64
-    const base64Image = convertToBase64(imagePath);
-
-    // Create a new Product document
-    const newProduct = new Product_sub({
-      image: base64Image,
-      description: description,
-      local_id:loacl_id,
-      date_of:date_of
-    });
-
-    // Save the product to MongoDB
-    await newProduct.save();
-
-    // Remove the uploaded image file
-    fs.unlinkSync(imagePath);
-
-    // Send a success response
-    res.status(200).json({ message: 'Data uploaded successfully' });
+      res.status(200).json({ message: 'Data uploaded successfully' });
   } catch (error) {
-    console.error('Error handling request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+      console.error('Error handling request:', error);
+      res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+
 //get the image and descriptions
 router.get('/get_image/:local_id', async (req, res) => {
-  console.log("I am get image");
   try {
     const local_id = req.params.local_id;
+    console.log("i am here");
     console.log(local_id);
 
     // Find the product document with the matching local_id
     const details = await Product_sub.findOne({ local_id });
-    const product = await Product.findOne({local_id});
-
+    const product = await Product.findOne({ local_id });
+    
     // If the product is not found, return a 404 Not Found response
     if (!details) {
-      console.log("product not found");
+      console.log("Product not found");
       return res.status(404).json({ error: 'Product not found' });
     }
-
-    // Retrieve the base64-encoded image and description from the product document
+    
     const base64Image = details.image;
     const name = product.name;
     const price = product.price;
@@ -630,8 +618,17 @@ router.get('/get_image/:local_id', async (req, res) => {
     console.log(price);
     console.log(name);
 
-    // Send the base64-encoded image and description in the response
-    res.status(200).json({ image: base64Image, description: description,name:name,price:price ,date_of:date_of,date:moment(date).fromNow()});
+    // Convert the base64 string to a buffer
+    const imageBuffer = Buffer.from(base64Image, 'base64');
+
+    // Convert the buffer to base64 string
+    const imageData = imageBuffer.toString('base64');
+
+    // Set response headers
+    res.set('Content-Type', 'image/jpeg'); // Assuming JPEG image format
+
+    // Send the image data in the response
+    res.status(200).json({ image: imageData, description: description, name: name, price: price, date_of: date_of, date: moment(date).fromNow()});
   } catch (error) {
     console.error('Error handling request:', error);
     res.status(500).json({ error: 'Internal server error' });
