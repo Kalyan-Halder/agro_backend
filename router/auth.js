@@ -543,7 +543,7 @@ router.post("/add_product", async (req, res) => {
       seller_id,
       "products.product_name": name,
     });
-    console.log(existingGraphData);
+     
     if (!existingGraphData) {
       console.log("No data exists so creating new");
       const newProduct = {
@@ -639,10 +639,11 @@ router.get('/get_image/:local_id', async (req, res) => {
 router.get("/seller_products/:seller_id", async (req, res) => {
   const seller_id = req.params.seller_id;
   try {
-    const data = await Product.find({ seller_id });
+    const data = await Product.find({ seller_id }).sort({ createdAt: -1 });
     res.status(200).send(data);
   } catch (err) {
     console.log(err);
+    res.status(500).send('Internal Server Error');
   }
 });
 
@@ -719,7 +720,7 @@ router.put("/update_product_status/:product_id", async (req, res) => {
 
 router.get("/all_product", async (req, res) => {
   try {
-    all_product = await Product.find({});
+    all_product = await Product.find({}).sort({ createdAt: -1 });
     res.status(200).send(all_product);
   } catch (err) {
     res.status(300).send("Unable to fetch products");
@@ -740,7 +741,7 @@ router.post("/add_to_cart", async (req, res) => {
     if (!existingCart) {
       const newCart = new Cart({ buyer_id, cart_items });
       const savedCart = await newCart.save();
-      res.status(201).json(savedCart);
+      res.status(201).json(savedCart).sort({ createdAt: -1 });
     } else {
       cart_items.forEach((cartItem) => {
         existingCart.cart_items.push(cartItem);
@@ -1137,7 +1138,7 @@ router.get("/best_product", async (req, res) => {
 //get seller's products unauthorized
 router.get("/fetch_unauthorized_for_admin_products", async (req, res) => {
   try {
-    const data = await Product.find({ isVerified: false });
+    const data = await Product.find({ isVerified: false }).sort({ createdAt: -1 });
     res.status(200).send(data);
   } catch (err) {
     console.log(err);
@@ -1146,7 +1147,7 @@ router.get("/fetch_unauthorized_for_admin_products", async (req, res) => {
 
 router.get("/fetch_authorized_for_admin_products", async (req, res) => {
   try {
-    const data = await Product.find({ isVerified: true });
+    const data = await Product.find({ isVerified: true }).sort({ createdAt: -1 });
     res.status(200).send(data);
   } catch (err) {
     console.log(err);
@@ -1155,7 +1156,7 @@ router.get("/fetch_authorized_for_admin_products", async (req, res) => {
 
 router.get("/fetch_all_product", async (req, res) => {
   try {
-    const data = await Product.find();
+    const data = await Product.find().sort({ createdAt: -1 });
     res.status(200).send(data);
   } catch (err) {
     console.log(err);
