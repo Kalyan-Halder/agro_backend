@@ -9,7 +9,8 @@ const cartItemSchema = new mongoose.Schema({
     category: { type: String, required: true },
     price: { type: Number, required: true },
     seller_id:{type:String,required:true},
-    isVerified: { type: Boolean, required: true }
+    isVerified: { type: Boolean, required: true },
+    createdAt: { type: Date, default: Date.now }
   }
 });
 
