@@ -740,8 +740,12 @@ router.post("/add_to_cart", async (req, res) => {
 
     if (!existingCart) {
       const newCart = new Cart({ buyer_id, cart_items });
-      const savedCart = await newCart.save();
-      res.status(201).json(savedCart).sort({ createdAt: -1 });
+      try{
+        const savedCart = await newCart.save();
+        res.status(201).json(savedCart).sort({ createdAt: -1 });
+      }catch(e){
+        console.log(e)
+      }
     } else {
       cart_items.forEach((cartItem) => {
         existingCart.cart_items.push(cartItem);
@@ -1126,7 +1130,7 @@ router.get("/best_product", async (req, res) => {
         },
       },
     ]);
-
+    console.log(topProducts)
     res.json(topProducts);
   } catch (error) {
     console.error("Error fetching top 5 products:", error);
