@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const moment = require("moment");
 
+const { GoogleGenerativeAI } = require("@google/generative-ai")
 
 
 const User = require("../model/userSchema");
@@ -48,6 +49,7 @@ dotenv.config({ path: "config.env" });
 const API = process.env.OPENAI_API_KEY;
 
 const configuration = new Configuration({
+  organization: "org-dbMQbXhamLUymOPIyGuwYsCX",
   apiKey: API,
 });
 
@@ -56,6 +58,12 @@ const openai = new OpenAIApi(configuration);
 router.get("/", (req, res) => {
   res.send("Hello from the router");
 });
+
+
+const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+const prompt = "Write a story about a magic backpack.";
 
 
 
@@ -75,19 +83,18 @@ router.post("/message", async (req, res) => {
     });*/
 
   try {
+    /*
     const response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
+      model: "text-embedding-3-large",
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: message },
       ],
-      temperature: 1,
-      max_tokens: 3000,
-      top_p: 1,
-      frequency_penalty: 0.5,
-      presence_penalty: 0,
     });
     const generatedMessage = response.data.choices[0].message.content;
+    */
+    const result = await model.generateContent(message);
+    const generatedMessage = result.response.text();
 
     //check the knowledge base if their is an entry for the question
     const knowledgeBase = await Knowledge.find({});
