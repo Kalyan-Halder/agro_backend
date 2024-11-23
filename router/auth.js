@@ -247,14 +247,76 @@ router.post("/ask", async (req, res) => {
 //get user
 router.get("/user/:user_id", async (req, res) => {
   try {
+    console.log("I am here")
+    
     const userId = req.params.user_id;
+    console.log(userId)
     const user = await User.findOne({ _id: userId });
+
     // Check if the user exists
     if (!user) {
       return res.status(404).json({ error: "User not found" });
-    } else {
-      return res.status(200).json(user);
     }
+    if(user.role == "Seller"){
+      const totalSales = await Order.aggregate([
+        { $unwind: "$cartItems" }, // Unwind the cartItems array
+        { $match: { "cartItems.product.seller_id": userId } }, // Match seller_id with userId
+        {
+          $project: {
+            productTotal: {
+              $multiply: [
+                "$cartItems.product.quantity",
+                "$cartItems.product.price"
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalSales: { $sum: "$productTotal" }
+          }
+        }
+      ]);
+  
+      // Extract total sales value
+      const salesAmount = totalSales.length > 0 ? totalSales[0].totalSales : 0;
+      const products = await Product.find({ seller_id: userId });
+      const approved_products = await Product.find({ seller_id: userId,isVerified:true });
+      const unapproved_products = await Product.find({ seller_id: userId,isVerified:false });
+  
+  
+      const totalProducts = products.length;
+      approved = approved_products.length
+      unapproved = unapproved_products.length
+  
+      // Respond with user, total sales, and total products
+      res.status(200).json({
+        user,
+        salesAmount,
+        totalProducts,
+        approved,
+        unapproved
+      });
+    }else if (user.role == "Administrator"){
+      const approved_products = await Product.find({ isVerified:true });
+      const unapproved_products = await Product.find({ isVerified:false });
+      approved = approved_products.length
+      unapproved = unapproved_products.length
+  
+      // Respond with user, total sales, and total products
+      res.status(200).json({
+        user,
+        approved,
+        unapproved
+      });
+    }
+    else if(user.role == "Buyer"){
+       res.status(200).json({
+        user
+       })
+    }
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -1168,6 +1230,7 @@ router.get("/fetch_authorized_for_admin_products", async (req, res) => {
 router.get("/fetch_all_product", async (req, res) => {
   try {
     const data = await Product.find().sort({ createdAt: -1 });
+    console.log(data);
     res.status(200).send(data);
   } catch (err) {
     console.log(err);
